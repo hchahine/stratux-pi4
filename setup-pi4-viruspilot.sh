@@ -50,7 +50,8 @@ cd /root && rm -r WiringPi
 # clone stratux
 cd /root
 rm -r /root/stratux
-git clone --recursive https://github.com/VirusPilot/stratux.git /root/stratux
+#git clone --recursive https://github.com/VirusPilot/stratux.git /root/stratux
+git clone --recursive https://github.com/hchahine/stratux.git /root/stratux # HANI: Pull in our modified version of stratux
 cd /root/stratux
 
 # set "arm_64bit=0" in case of armv7l
