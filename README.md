@@ -1,4 +1,4 @@
-# Build a Stratux Europe on a Pi3B, Pi4B or Pi Zero 2W based on a fresh 64bit RasPiOS Lite Image
+# Build a Stratux Europe on a Pi3, Pi4, Pi5 or Pi Zero 2W based on a fresh 64bit RasPiOS Lite Image
 
 - shopping lists:
   - https://github.com/VirusPilot/stratux-pi4/wiki/Shopping-List-v3-TX (active cooling with fan, copper heatsink, TX module)
@@ -6,34 +6,34 @@
   - https://github.com/VirusPilot/stratux-pi4/wiki/Shopping-List-v2 (active cooling with fan)
   - https://github.com/VirusPilot/stratux-pi4/wiki/Shopping-List-v1 (passive cooling with custum aluminium block)
   
-- both scripts are based on the latest 64bit RasPiOS Lite Image, using latest **Raspberry Pi Imager** from here: https://www.raspberrypi.com/software/
+- both scripts are based on the latest **64bit RasPiOS Lite Bookworm Image**, using **Raspberry Pi Imager** from here: https://www.raspberrypi.com/software/
 
 # stratux-pi4-standard
 based on https://github.com/b3nn0/stratux
 
 # stratux-pi4-viruspilot
 based on my fork https://github.com/VirusPilot/stratux with the following modifications compared to the "standard" version:
+- fancontrol disabled
+- logging to external USB disabled
 - image/config.txt: slight modifications
-- main/gps.go: load default configuration for u-blox GPS before sending the Stratux related configuration
 - main/gps.go: enable GPS LED to indicate a valid GPS fix
-- main/gps.go: handle a conneted T-Beam-S3Core as GPS_TYPE_SERIAL so that HDOP is properly calculated
 - main/gen_gdl90.go: increase GDL90 ownship report from 1Hz to 5Hz
 
 ## please use these scripts with caution and only on a fresh 64bit RasPiOS Lite Image, because:
 - the entire filesystem (except /boot) will be changed to read-only to prevent microSD card corruption
 - swapfile will be disabled
 
-## prepare script for Pi3B, Pi4B or Pi Zero 2W:
-- flash latest 64bit RasPiOS Lite Image, using latest **Raspberry Pi Imager** with the following settings:
+## prepare script for Pi3, Pi4, Pi5 or Pi Zero 2W:
+- flash latest 64bit RasPiOS Lite Image (Debian 11 or 12, see below), using latest **Raspberry Pi Imager** with the following settings:
   - select appropriate hostname
   - enable ssh
   - enable user pi with password
-  - configure WiFi (particularly important for Pi Zero 2W)
-- boot with this image and wait until your Pi is connected to your LAN or WiFi
+  - Pi Zero 2W: enable and configure WiFi so that the Pi connects to your local network
+- boot your Pi with this image and wait until it is connected to your LAN or WiFi (this may take a few minutes after the first boot)
 - please note that the brightness values of the Pi Zero 2W LED are reversed so it will turn off as soon as Stratux has successfully booted
 
 ## start build process
-login as `pi` user with the above set password, then:
+login with ssh as `pi` user with the above set password, then:
 ```
 sudo su
 ```
@@ -41,23 +41,22 @@ standard version:
 ```
 cd ~/
 apt update
-wget https://raw.githubusercontent.com/VirusPilot/stratux-pi4/master/setup-pi4-standard.sh
-chmod +x setup-pi4-standard.sh
-./setup-pi4-standard.sh
+apt full-upgrade -y
+sudo bash -c "$(wget -nv -O - https://raw.githubusercontent.com/VirusPilot/stratux-pi4/master/setup-pi4-standard.sh)"
 ```
 viruspilot version:
 ```
 cd ~/
 apt update
 apt full-upgrade -y
-wget https://raw.githubusercontent.com/VirusPilot/stratux-pi4/master/setup-pi4-viruspilot.sh
-chmod +x setup-pi4-viruspilot.sh
-./setup-pi4-viruspilot.sh
+sudo bash -c "$(wget -nv -O - https://raw.githubusercontent.com/VirusPilot/stratux-pi4/master/setup-pi4-viruspilot.sh)"
 ```
 - if you are all set then let the sript **reboot** but if you haven't yet programed your SDRs, now would be a good time before Stratux will be claiming the SDRs after a reboot; please follow the instructions under "Remarks - SDR programming" below for each SDR individually
-- after reboot please reconnect LAN and/or WiFi and Stratux should work right away
+- after reboot Stratux is providing an unprotected WiFi access point with the SSID "stratux"
+- after you have connected with this access point, you can open the Stratux web interface: http://192.168.10.1 and modify the settings according to your needs
+- Pi Zero 2W users: Stratux will now no longer connect to your local network unless you change this by switching the Stratux WiFi settings to "AP+Client"
 
-## optinal components:
+## optional components:
 enabling **Persistent logging** on Stratux settings page is required!
 
 - you may now install https://github.com/VirusPilot/stratux-radar-display:

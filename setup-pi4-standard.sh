@@ -2,16 +2,18 @@
 #set -x
 
 # prepare libs
-apt install libjpeg62-turbo-dev libconfig9 rpi-update dnsmasq git cmake libusb-1.0-0-dev build-essential \
-  autoconf libtool i2c-tools libfftw3-dev libncurses-dev python3-serial jq ifplugd iptables git -y
+apt install libjpeg62-turbo-dev libconfig9 rpi-update dnsmasq git libusb-1.0-0-dev build-essential \
+  autoconf libtool i2c-tools libfftw3-dev libncurses-dev python3-serial jq ifplugd iptables libttspico-utils -y
+apt install cmake debhelper -y
+
+ARCH=$(getconf LONG_BIT)
 
 # install latest golang
 cd /root
-ARCH=$(arch)
-if [[ $ARCH == aarch64 ]]; then
-    wget https://go.dev/dl/go1.21.1.linux-arm64.tar.gz
+if [[ $ARCH -eq 64 ]]; then
+    wget https://go.dev/dl/go1.22.3.linux-arm64.tar.gz
   else
-    wget https://go.dev/dl/go1.21.1.linux-armv6l.tar.gz
+    wget https://go.dev/dl/go1.22.3.linux-armv6l.tar.gz
 fi
 
 rm -rf /root/go
@@ -19,18 +21,18 @@ rm -rf /root/go_path
 tar xzf *.gz
 rm *.gz
 
-# install librtlsdr
-cd /root
-rm -rf /root/rtl-sdr
-git clone https://github.com/osmocom/rtl-sdr.git
-cd rtl-sdr
-mkdir build
-cd build
-cmake ../ -DDETACH_KERNEL_DRIVER=ON -DINSTALL_UDEV_RULES=ON
-make
-sudo make install
-sudo ldconfig
-rm -rf /root/rtl-sdr
+# install rtl-sdr-blog driver
+git clone https://github.com/rtlsdrblog/rtl-sdr-blog
+cd rtl-sdr-blog
+sudo dpkg-buildpackage -b --no-sign
+cd ..
+
+sudo dpkg -i librtlsdr0_*.deb
+sudo dpkg -i librtlsdr-dev_*.deb
+sudo dpkg -i rtl-sdr_*.deb
+rm -f *.deb
+rm -f *.buildinfo
+rm -f *.changes
 
 # install kalibrate-rtl
 cd /root
@@ -53,15 +55,14 @@ rm -r /root/stratux
 git clone --recursive https://github.com/b3nn0/stratux.git /root/stratux
 cd /root/stratux
 
-# set "arm_64bit=0" in case of armv7l
-ARCH=$(arch)
-if [[ $ARCH != aarch64 ]]; then
+# set "arm_64bit=0" in case of 32bit
+if [[ $ARCH -eq 32 ]]; then
   sed -i image/config.txt -e "s/arm_64bit=1/arm_64bit=0/g"
 fi
 
 # copy various files from /root/stratux/image
 cd /root/stratux/image
-cp -f config.txt /boot/config.txt
+cp -f config.txt /boot/firmware/config.txt # modified in https://github.com/VirusPilot/stratux
 cp -f bashrc.txt /root/.bashrc
 cp -f rc.local /etc/rc.local
 cp -f modules.txt /etc/modules
@@ -77,22 +78,21 @@ cp -f sshd_config /etc/ssh/sshd_config
 cp -f overlayctl init-overlay /sbin/
 overlayctl install
 # init-overlay replaces raspis initial partition size growing.. Make sure we call that manually (see init-overlay script)
-touch /var/grow_root_part
+#touch /var/grow_root_part
 mkdir -p /overlay/robase # prepare so we can bind-mount root even if overlay is disabled
 
 # So we can import network settings if needed
-touch /boot/.stratux-first-boot
+touch /boot/firmware/.stratux-first-boot
 
 # Optionally mount /dev/sda1 as /var/log - for logging to USB stick
-echo -e "\n/dev/sda1             /var/log        auto    defaults,nofail,noatime,x-systemd.device-timeout=1ms  0       2" >> /etc/fstab
+#echo -e "\n/dev/sda1             /var/log        auto    defaults,nofail,noatime,x-systemd.device-timeout=1ms  0       2" >> /etc/fstab
 
 #disable serial console, disable rfkill state restore, enable wifi on boot
-sed -i /boot/cmdline.txt -e "s/console=serial0,[0-9]\+ /systemd.restore_state=0 rfkill.default_state=1 /"
+sed -i /boot/firmware/cmdline.txt -e "s/console=serial0,[0-9]\+ /systemd.restore_state=0 rfkill.default_state=1 /"
 
 # prepare services
 systemctl enable ssh
 systemctl disable dnsmasq # we start it manually on respective interfaces
-systemctl disable dhcpcd
 systemctl disable hciuart
 systemctl disable triggerhappy
 systemctl disable wpa_supplicant
